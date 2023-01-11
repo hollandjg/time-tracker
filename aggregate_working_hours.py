@@ -19,16 +19,13 @@ def main():
     dates = all_data.loc[:, "date_local"].unique()
     # print(dates)
 
+    period_length = pandas.Timedelta(pandas.offsets.Minute(5))
     analysis_periods = pandas.date_range(all_data.loc[:, "date_local"].min(),
-                                         all_data.loc[:, "date_local"].max() + pandas.DateOffset(
-                                             days=1),
-                                         freq="5min", name="time_utc").to_series()
+                                         all_data.loc[:, "date_local"].max() +
+                                         pandas.DateOffset(days=1),
+                                         freq=period_length, name="time_utc").to_series()
 
-    # print(analysis_periods)
-
-    analysis_durations = analysis_periods.diff()
-
-    analysis_df = pandas.DataFrame(index=analysis_periods, data={"duration": analysis_durations})
+    analysis_df = pandas.DataFrame(index=analysis_periods, data={"duration": period_length})
 
     all_data_with_index = all_data.set_index("time_utc").sort_index()
 
