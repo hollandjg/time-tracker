@@ -14,13 +14,30 @@ def main():
     args = parser.parse_args()
 
     all_data = get_all_data_from_directory(args.directory)
-    print(all_data)
+    # print(all_data)
 
     dates = all_data.loc[:, "date_local"].unique()
-    print(dates)
+    # print(dates)
 
-    min_max_local_dates = all_data.groupby("date_local").agg({"time_utc": ["min", "max"]})
-    print(min_max_local_dates)
+    analysis_periods = pandas.date_range(all_data.loc[:, "date_local"].min(),
+                                         all_data.loc[:, "date_local"].max() + pandas.DateOffset(
+                                             days=1),
+                                         freq="5min", name="time_utc").to_series()
+
+    # print(analysis_periods)
+
+    analysis_durations = analysis_periods.diff()
+
+    analysis_df = pandas.DataFrame(index=analysis_periods, data={"duration": analysis_durations})
+
+    all_data_with_index = all_data.set_index("time_utc").sort_index()
+
+    combined_data = pandas.merge_asof(analysis_df,
+                                      all_data_with_index,
+                                      left_index=True,
+                                      right_index=True)
+
+    print(combined_data.groupby(["date_local", "focus"]).agg({"duration": "sum"}))
 
 
 def get_all_data_from_directory(directory: pathlib.Path) -> pandas.DataFrame:
