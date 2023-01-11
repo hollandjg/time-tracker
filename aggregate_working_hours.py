@@ -14,10 +14,6 @@ def main():
     args = parser.parse_args()
 
     all_data = get_all_data_from_directory(args.directory)
-    # print(all_data)
-
-    dates = all_data.loc[:, "date_local"].unique()
-    # print(dates)
 
     period_length = pandas.Timedelta(pandas.offsets.Minute(5))
     analysis_periods = pandas.date_range(all_data.loc[:, "date_local"].min(),
