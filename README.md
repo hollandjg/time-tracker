@@ -12,4 +12,4 @@ It creates a job which logs the "current focus" from macOS / iOS every 5 minutes
 ## Removal
 
 - Deactivate and delete the job using `.uninstall.sh`.
-- Delete the "Log Current Focus" shortcut in the app "Shortcuts".
+- Delete the `Log Current Focus.shortcut` shortcut in the app "Shortcuts".
