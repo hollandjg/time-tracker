@@ -10,10 +10,21 @@ import pandas as pandas
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--directory', '-d', type=pathlib.Path)
+    parser.add_argument('--live', '-l', action='store_true')
 
     args = parser.parse_args()
 
     all_data = get_all_data_from_directory(args.directory)
+
+    if args.live:
+        # We include an additional datapoint which is "now" and has no status
+        all_data = pandas.concat(
+            [all_data,
+             pandas.DataFrame([(pandas.Timestamp.now(), "", __name__)],
+                              columns=["time", "focus", "device"])]
+        )
+
+    add_derived_columns(all_data)
 
     period_length = pandas.Timedelta(pandas.offsets.Minute(5))
     analysis_periods = pandas.date_range(all_data.loc[:, "date_local"].min(),
