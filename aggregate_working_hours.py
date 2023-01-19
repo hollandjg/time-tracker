@@ -51,9 +51,13 @@ def get_all_data_from_directory(directory: pathlib.Path) -> pandas.DataFrame:
            filename in
            directory.glob("*.csv")]
     df = pandas.concat(dfs)
+
+    return df
+
+
+def add_derived_columns(df):
     df["time_utc"] = pandas.to_datetime(df["time"], utc=True)
     df["date_local"] = df["time"].map(lambda x: datetime.date(x.year, x.month, x.day))
-    return df
 
 
 if __name__ == "__main__":
