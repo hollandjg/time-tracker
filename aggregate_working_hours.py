@@ -6,6 +6,7 @@ import pathlib
 from enum import Enum
 
 import pandas as pandas
+import matplotlib.pyplot as plt
 
 
 def main():
@@ -42,17 +43,40 @@ def main():
                            left_index=True,
                            right_index=True)
 
-    print(
-        (
-                df
-                .loc[df["focus"] == "Work"]
-                .groupby(["focus", "year", "week"]).agg({"duration": "sum"})
-                / pandas.Timedelta(hours=1)
-        )["duration"]
-        .map('{:,.1f}'.format)
-    )
+    df_expected_working_hours = get_expected_working_hours()
 
-    get_expected_working_hours()
+    # Aggregation by week
+    aggregated_expected_hours = (df_expected_working_hours
+                                 .groupby(["year", "week"]).agg({"expected": "sum"})
+                                 )
+    aggregated_worked_hours = (df
+                               .loc[df["focus"] == "Work"]
+                               .groupby(["focus", "year", "week"]).agg({"duration": "sum"})
+                               / pandas.Timedelta(hours=1))
+
+    aggregated_data = aggregated_worked_hours.merge(aggregated_expected_hours, left_index=True,
+                                                    right_index=True, how="outer")
+
+    print(aggregated_data.applymap('{:,.1f}'.format))
+
+    # Aggregation and cumulative sum over the year
+    aggregated_worked_hours_by_day = (df
+                                      .loc[df["focus"] == "Work"]
+                                      .groupby(["date_local"]).agg({"duration": "sum"})
+                                      )
+    aggregated_data_by_day = aggregated_worked_hours_by_day.merge(df_expected_working_hours,
+                                                                  left_index=True,
+                                                                  right_index=True, how="outer")
+    dates_up_to_today = aggregated_data_by_day.index <= pandas.to_datetime('today')
+
+    aggregated_data_by_day["worked"] = aggregated_data_by_day["duration"].fillna(
+        pandas.Timedelta(0)) / pandas.Timedelta(hours=1)
+    cumulative_aggregate_by_day = (aggregated_data_by_day[["expected", "worked"]]
+                                   .loc[dates_up_to_today]
+                                   .cumsum()
+                                   )
+    cumulative_aggregate_by_day.plot(ylabel="hours")
+    plt.show()
 
 
 def get_all_data_from_directory(directory: pathlib.Path) -> pandas.DataFrame:
@@ -67,24 +91,24 @@ def get_all_data_from_directory(directory: pathlib.Path) -> pandas.DataFrame:
 
 
 def get_expected_working_hours(working_hours_per_week=37.5, working_days_per_week=5):
-    working_hours_per_day = working_hours_per_week / working_days_per_week
     index = pandas.date_range("2023-01-01", periods=365, freq="D")
-    df = pandas.DataFrame(index=index)
+    df_non_work_days = pandas.DataFrame(index=index)
     series = index.to_series()
-    df[['year', 'week', 'day']] = series.dt.isocalendar()
-    df["weekend"] = df["day"] >= 6
 
-    NonWorkDays = Enum("NonWorkDays", ["VACATION", "HOLIDAY", "EMPLOYEE_APPRECIATION_DAY"])
+    NonWorkDays = Enum("NonWorkDays", ["WEEKEND", "VACATION", "HOLIDAY",
+                                       "EMPLOYEE_APPRECIATION_DAY", "ANNUAL_LEAVE"])
+
+    series_iso_dates = series.dt.isocalendar()
+    df_non_work_days[NonWorkDays.WEEKEND] = series_iso_dates["day"] >= 6
 
     # Vacations (dates inclusive)
-    vacation = "vacation"
     vacations = [("christmas vacation 2022/2023", ("2022-12-23", "2023-01-08")),
                  ("christmas vacation 2023/2024", ("2023-12-27", "2024-01-05")), ]
     for label, (start_date, end_date) in vacations:
-        df[(vacation, label)] = (series >= start_date) & (series <= end_date)
+        df_non_work_days[(NonWorkDays.VACATION, label)] = (series >= start_date) & (
+                series <= end_date)
 
     # Holidays (single dates)
-    holiday = "holiday"
     holidays = [
         ("New Year's Day", "2023-01-02"),
         ("Martin Luther King, Jr. Day", "2023-01-16"),
@@ -101,12 +125,26 @@ def get_expected_working_hours(working_hours_per_week=37.5, working_days_per_wee
         ("New Year's Day", "2024-01-01"),
     ]
     for label, date in holidays:
-        df[(holiday, label)] = (series == date)
+        df_non_work_days[(NonWorkDays.HOLIDAY, label)] = (series == date)
 
     employee_appreciation_days = ["2023-02-20", "2023-08-11", "2024-02-19", "2024-08-09"]
-    df["employee appreciation day"] = series.isin(employee_appreciation_days)
+    df_non_work_days[NonWorkDays.EMPLOYEE_APPRECIATION_DAY] = series.isin(
+        employee_appreciation_days)
 
-    print(df)
+    annual_leave = [("leave", ("2023-01-27", "2023-01-27")),
+                    ("sick day", ("2023-02-08", "2023-02-08")), ]
+    for label, (start_date, end_date) in annual_leave:
+        df_non_work_days[(NonWorkDays.ANNUAL_LEAVE, label)] = (series >= start_date) & (
+                series <= end_date)
+
+    working_days = ~df_non_work_days.any("columns")
+
+    working_hours_per_day = working_hours_per_week / working_days_per_week
+    expected_working_hours = pandas.DataFrame(
+        index=index, data={"expected": working_days * working_hours_per_day})
+    expected_working_hours[['year', 'week', 'day']] = series_iso_dates
+
+    return expected_working_hours
 
 
 def add_derived_columns(df):
