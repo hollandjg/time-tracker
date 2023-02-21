@@ -20,7 +20,7 @@ def main():
         # We include an additional datapoint which is "now" and has no status
         all_data = pandas.concat(
             [all_data,
-             pandas.DataFrame([(pandas.Timestamp.now(), "", __name__)],
+             pandas.DataFrame([(pandas.Timestamp.now("utc"), "", __name__)],
                               columns=["time", "focus", "device"])]
         )
 
