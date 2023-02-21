@@ -41,18 +41,15 @@ def main():
                            left_index=True,
                            right_index=True)
 
-    print(df.groupby(["date_local", "focus"]).agg({"duration": "sum"}))
-
     print(
         (
-                df.groupby(["focus", "year", "week"]).agg({"duration": "sum"}) /
-                pandas.Timedelta(hours=1)
-        )["duration"].map('{:,.1f}'.format)
+                df
+                .loc[df["focus"] == "Work"]
+                .groupby(["focus", "year", "week"]).agg({"duration": "sum"})
+                / pandas.Timedelta(hours=1)
+        )["duration"]
+        .map('{:,.1f}'.format)
     )
-
-    print(df
-          .loc[df["focus"] == "Work"]
-          .pivot_table(values="duration", columns=["focus"], index=["year", "week"], aggfunc=sum))
 
 
 def get_all_data_from_directory(directory: pathlib.Path) -> pandas.DataFrame:
