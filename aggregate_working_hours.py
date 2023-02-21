@@ -36,22 +36,22 @@ def main():
 
     all_data_with_index = all_data.set_index("time_utc").sort_index()
 
-    combined_data = pandas.merge_asof(analysis_df,
-                                      all_data_with_index,
-                                      left_index=True,
-                                      right_index=True)
+    df = pandas.merge_asof(analysis_df,
+                           all_data_with_index,
+                           left_index=True,
+                           right_index=True)
 
-    print(combined_data.groupby(["date_local", "focus"]).agg({"duration": "sum"}))
+    print(df.groupby(["date_local", "focus"]).agg({"duration": "sum"}))
 
     print(
         (
-                combined_data.groupby(["focus", "year", "week"]).agg({"duration": "sum"}) /
+                df.groupby(["focus", "year", "week"]).agg({"duration": "sum"}) /
                 pandas.Timedelta(hours=1)
         )["duration"].map('{:,.1f}'.format)
     )
 
-    print(combined_data
-          .loc[combined_data["focus"] == "Work"]
+    print(df
+          .loc[df["focus"] == "Work"]
           .pivot_table(values="duration", columns=["focus"], index=["year", "week"], aggfunc=sum))
 
 
