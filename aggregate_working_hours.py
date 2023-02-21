@@ -137,7 +137,7 @@ def get_expected_working_hours(working_hours_per_week=37.5, working_days_per_wee
         df_non_work_days[(NonWorkDays.ANNUAL_LEAVE, label)] = (series >= start_date) & (
                 series <= end_date)
 
-    working_days = ~df_non_work_days.any("columns")
+    working_days = ~df_non_work_days.any(axis="columns")
 
     working_hours_per_day = working_hours_per_week / working_days_per_week
     expected_working_hours = pandas.DataFrame(
