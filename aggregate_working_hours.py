@@ -43,6 +43,17 @@ def main():
 
     print(combined_data.groupby(["date_local", "focus"]).agg({"duration": "sum"}))
 
+    print(
+        (
+                combined_data.groupby(["focus", "year", "week"]).agg({"duration": "sum"}) /
+                pandas.Timedelta(hours=1)
+        )["duration"].map('{:,.1f}'.format)
+    )
+
+    print(combined_data
+          .loc[combined_data["focus"] == "Work"]
+          .pivot_table(values="duration", columns=["focus"], index=["year", "week"], aggfunc=sum))
+
 
 def get_all_data_from_directory(directory: pathlib.Path) -> pandas.DataFrame:
     dfs = [pandas.read_csv(filename, names=["time", "focus", "device"],
