@@ -57,8 +57,6 @@ def main():
     aggregated_data = aggregated_worked_hours.merge(aggregated_contracted_hours, left_index=True,
                                                     right_index=True, how="outer")
 
-    print(aggregated_data.applymap('{:,.1f}'.format))
-
     # Aggregation and cumulative sum over the year
     aggregated_worked_hours_by_day = (df
                                       .loc[df["focus"] == "Work"]
