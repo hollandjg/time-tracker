@@ -43,18 +43,18 @@ def main():
                            left_index=True,
                            right_index=True)
 
-    df_expected_working_hours = get_expected_working_hours()
+    df_contracted_working_hours = get_contracted_working_hours()
 
     # Aggregation by week
-    aggregated_expected_hours = (df_expected_working_hours
-                                 .groupby(["year", "week"]).agg({"expected": "sum"})
-                                 )
+    aggregated_contracted_hours = (df_contracted_working_hours
+                                   .groupby(["year", "week"]).agg({"contracted": "sum"})
+                                   )
     aggregated_worked_hours = (df
                                .loc[df["focus"] == "Work"]
                                .groupby(["focus", "year", "week"]).agg({"duration": "sum"})
                                / pandas.Timedelta(hours=1))
 
-    aggregated_data = aggregated_worked_hours.merge(aggregated_expected_hours, left_index=True,
+    aggregated_data = aggregated_worked_hours.merge(aggregated_contracted_hours, left_index=True,
                                                     right_index=True, how="outer")
 
     print(aggregated_data.applymap('{:,.1f}'.format))
@@ -64,19 +64,30 @@ def main():
                                       .loc[df["focus"] == "Work"]
                                       .groupby(["date_local"]).agg({"duration": "sum"})
                                       )
-    aggregated_data_by_day = aggregated_worked_hours_by_day.merge(df_expected_working_hours,
+    aggregated_data_by_day = aggregated_worked_hours_by_day.merge(df_contracted_working_hours,
                                                                   left_index=True,
                                                                   right_index=True, how="outer")
     dates_up_to_today = aggregated_data_by_day.index <= pandas.to_datetime('today')
 
     aggregated_data_by_day["worked"] = aggregated_data_by_day["duration"].fillna(
         pandas.Timedelta(0)) / pandas.Timedelta(hours=1)
-    cumulative_aggregate_by_day = (aggregated_data_by_day[["expected", "worked"]]
+    cumulative_aggregate_by_day = (aggregated_data_by_day[["contracted", "worked"]]
                                    .loc[dates_up_to_today]
                                    .cumsum()
                                    )
-    cumulative_aggregate_by_day.plot(ylabel="hours")
-    plt.show()
+
+    cumulative_aggregate_by_day["surplus"] = cumulative_aggregate_by_day["worked"] - \
+                                             cumulative_aggregate_by_day["contracted"]
+
+    fig, (ax1, ax2) = plt.subplots(2, sharex=True, height_ratios=[3, 1])
+    cumulative_aggregate_by_day[["contracted", "worked"]].plot(ylabel="hours", ax=ax1)
+    cumulative_aggregate_by_day[["surplus"]].plot(ylabel="hours", ax=ax2)
+
+    ax2.axhline(y=0, c='gray', linewidth=0.5)
+    for ax in (ax1, ax2):
+        ax.grid(True)
+
+    fig.show()
 
 
 def get_all_data_from_directory(directory: pathlib.Path) -> pandas.DataFrame:
@@ -90,7 +101,7 @@ def get_all_data_from_directory(directory: pathlib.Path) -> pandas.DataFrame:
     return df
 
 
-def get_expected_working_hours(working_hours_per_week=37.5, working_days_per_week=5):
+def get_contracted_working_hours(working_hours_per_week=37.5, working_days_per_week=5):
     index = pandas.date_range("2023-01-01", periods=365, freq="D")
     df_non_work_days = pandas.DataFrame(index=index)
     series = index.to_series()
@@ -140,11 +151,11 @@ def get_expected_working_hours(working_hours_per_week=37.5, working_days_per_wee
     working_days = ~df_non_work_days.any(axis="columns")
 
     working_hours_per_day = working_hours_per_week / working_days_per_week
-    expected_working_hours = pandas.DataFrame(
-        index=index, data={"expected": working_days * working_hours_per_day})
-    expected_working_hours[['year', 'week', 'day']] = series_iso_dates
+    contracted_working_hours = pandas.DataFrame(
+        index=index, data={"contracted": working_days * working_hours_per_day})
+    contracted_working_hours[['year', 'week', 'day']] = series_iso_dates
 
-    return expected_working_hours
+    return contracted_working_hours
 
 
 def add_derived_columns(df):
